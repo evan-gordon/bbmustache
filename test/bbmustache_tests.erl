@@ -141,11 +141,11 @@ top_level_context_render_test_() ->
 array_index_key_test_() ->
     [
         {"It can substitute from an array",
-         ?_assertEqual(<<"I want to be the very best">>, bbmustache:render(<<"{{a.1}} want to be the very {{a.2}}">>, #{"a" => ["I", "best"]}))},
+         ?_assertEqual(<<"I want to be the very best">>, bbmustache:render(<<"{{a.0}} want to be the very {{a.1}}">>, #{"a" => ["I", "best"]}))},
         {"It can substitute from a top level array",
-         ?_assertEqual(<<"I want to be the very best">>, bbmustache:render(<<"{{1}} want to be the very {{2}}">>, ["I", "best"]))},
+         ?_assertEqual(<<"I want to be the very best">>, bbmustache:render(<<"{{0}} want to be the very {{1}}">>, ["I", "best"]))},
         {"It can  still substitute from an map with numerical key",
-         ?_assertEqual(<<"I want to be the very best">>, bbmustache:render(<<"{{a.1}} want to be the very {{a.2}}">>, #{"a" => #{"1" => "I", "2" => "best"}}))}
+         ?_assertEqual(<<"I want to be the very best">>, bbmustache:render(<<"{{a.0}} want to be the very {{a.1}}">>, #{"a" => #{"0" => "I", "1" => "best"}}))}
     ].
 
 atom_and_binary_key_test_() ->

@@ -628,14 +628,18 @@ get_data_recursive_impl([], Data, _) ->
 get_data_recursive_impl([<<".">>], Data, _) ->
     {ok, Data};
 get_data_recursive_impl([Key | RestKey] = Keys, Data, #?MODULE{context_stack = Stack} = State) ->
-    case (is_recursive_data(Data) orelse can_access_as_list(Key, Data)) andalso find_data(convert_keytype(Key, State), Data) of
-        {ok, ChildData} ->
-            get_data_recursive_impl(RestKey, ChildData, State#?MODULE{context_stack = []});
-        _ when Stack =:= [] ->
-            error;
-        _ ->
-            get_data_recursive_impl(Keys, hd(Stack), State#?MODULE{context_stack = tl(Stack)})
-    end.
+    case is_list(Data) andalso find_index_data_from_lists(Key, Data) of
+        {ok, ChildData} -> {ok, ChildData};
+        _               ->
+            case is_recursive_data(Data) andalso find_data(convert_keytype(Key, State), Data) of
+                {ok, ChildData} ->
+                    get_data_recursive_impl(RestKey, ChildData, State#?MODULE{context_stack = []});
+                _ when Stack =:= [] ->
+                    error;
+                _ ->
+                    get_data_recursive_impl(Keys, hd(Stack), State#?MODULE{context_stack = tl(Stack)})
+            end
+     end.
 
 %% @doc find the value of the specified key from {@link recursive_data/0}
 -spec find_data(data_key(), recursive_data() | term()) -> {ok, Value :: term()} | error.
@@ -690,6 +694,28 @@ is_recursive_data(_)                                -> false.
 is_recursive_data([Tuple | _]) when is_tuple(Tuple) -> true;
 is_recursive_data(_)                                -> false.
 -endif.
+
+%% @doc When the value can convert integer, it returns the integer. Otherwise it returns error.
+-spec safe_binary_to_integer(binary()) -> integer() | error.
+safe_binary_to_integer(Bin) ->
+    try
+        binary_to_integer(Bin)
+    catch _:_ ->
+        error
+    end.
+
+-spec find_index_data_from_lists(binary(), list()) -> {ok, term()} | error.
+find_index_data_from_lists(IndexBin, List) ->
+    case safe_binary_to_integer(IndexBin) of
+        Index when is_integer(Index), Index >= 0 ->
+            try
+                {ok, lists:nth(Index + 1, List)}
+            catch _:_ ->
+                error
+            end;
+        _ ->
+            error
+    end.
 
 -spec can_access_as_list(data_key(), recursive_data() | term()) -> boolean().
 can_access_as_list(Key, Value) when is_list(Value) ->
