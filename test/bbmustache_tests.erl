@@ -138,6 +138,16 @@ top_level_context_render_test_() ->
       ?_assertEqual(<<"yes">>, bbmustache:render(<<"{{.}}">>, #{"a" => "1"}, [{value_serializer, fun(#{"a" := "1"}) -> <<"yes">> end}]))}
     ].
 
+array_index_key_test_() ->
+    [
+        {"It can substitute from an array",
+         ?_assertEqual(<<"I want to be the very best">>, bbmustache:render(<<"{{a.1}} want to be the very {{a.2}}">>, #{"a" => ["I", "best"]}))},
+        {"It can substitute from a top level array",
+         ?_assertEqual(<<"I want to be the very best">>, bbmustache:render(<<"{{1}} want to be the very {{2}}">>, ["I", "best"]))},
+        {"It can  still substitute from an map with numerical key",
+         ?_assertEqual(<<"I want to be the very best">>, bbmustache:render(<<"{{a.1}} want to be the very {{a.2}}">>, #{"a" => #{"1" => "I", "2" => "best"}}))}
+    ].
+
 atom_and_binary_key_test_() ->
     [
      {"atom key",

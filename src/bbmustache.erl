@@ -628,7 +628,7 @@ get_data_recursive_impl([], Data, _) ->
 get_data_recursive_impl([<<".">>], Data, _) ->
     {ok, Data};
 get_data_recursive_impl([Key | RestKey] = Keys, Data, #?MODULE{context_stack = Stack} = State) ->
-    case is_recursive_data(Data) andalso find_data(convert_keytype(Key, State), Data) of
+    case (is_recursive_data(Data) orelse can_access_as_list(Key, Data)) andalso find_data(convert_keytype(Key, State), Data) of
         {ok, ChildData} ->
             get_data_recursive_impl(RestKey, ChildData, State#?MODULE{context_stack = []});
         _ when Stack =:= [] ->
@@ -643,17 +643,38 @@ get_data_recursive_impl([Key | RestKey] = Keys, Data, #?MODULE{context_stack = S
 find_data(Key, Map) when is_map(Map) ->
     maps:find(Key, Map);
 find_data(Key, AssocList) when is_list(AssocList) ->
-    case proplists:lookup(Key, AssocList) of
-        none   -> error;
-        {_, V} -> {ok, V}
+    case data_key_to_integer(Key) of
+        {ok, Index} ->
+            try lists:nth(Index, AssocList) of 
+                Value -> {ok, Value}
+            catch
+                _ -> {ok, <<>>}
+            end;
+
+        _ ->
+            %% If key is not integer parse as Associated List
+            case proplists:lookup(Key, AssocList) of
+                none   -> error;
+                {_, V} -> {ok, V}
+            end
     end;
 find_data(_, _) ->
     error.
 -else.
 find_data(Key, AssocList) ->
-    case proplists:lookup(Key, AssocList) of
-        none   -> error;
-        {_, V} -> {ok, V}
+    case data_key_to_integer(Key) of
+        {ok, Index} ->
+            try lists:nth(Index, AssocList) of 
+                Value -> {ok, Value}
+            catch
+                _ -> {ok, <<>>}
+            end;
+
+        _ ->
+            case proplists:lookup(Key, AssocList) of
+                none   -> error;
+                {_, V} -> {ok, V}
+            end
     end;
 find_data(_, _) ->
     error.
@@ -669,3 +690,27 @@ is_recursive_data(_)                                -> false.
 is_recursive_data([Tuple | _]) when is_tuple(Tuple) -> true;
 is_recursive_data(_)                                -> false.
 -endif.
+
+-spec can_access_as_list(data_key(), recursive_data() | term()) -> boolean().
+can_access_as_list(Key, Value) when is_list(Value) ->
+    case data_key_to_integer(Key) of
+        {ok, _} -> true;
+        _ -> false
+    end;
+can_access_as_list(_, _) -> false.
+
+-spec data_key_to_integer(data_key()) -> {ok, integer()} | error.
+data_key_to_integer(Key) when is_binary(Key) ->
+    case string:to_integer(Key) of
+        {Index, <<>>} -> {ok, Index};
+        _ -> error
+    end;
+data_key_to_integer(Key) when is_list(Key) ->
+    case string:to_integer(Key) of
+        {Index, []} -> {ok, Index};
+        _ -> error
+    end;
+data_key_to_integer(Key) when is_atom(Key) ->
+    data_key_to_integer(atom_to_list(Key));
+data_key_to_integer(_) ->
+    error.
